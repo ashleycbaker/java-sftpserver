@@ -1,22 +1,27 @@
 package com.programming.techie.javasftpserver;
 
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.sshd.common.util.security.bouncycastle.BouncyCastleGeneratorHostKeyProvider;
 import org.apache.sshd.server.SshServer;
 import org.apache.sshd.server.config.keys.AuthorizedKeysAuthenticator;
 import org.apache.sshd.server.keyprovider.SimpleGeneratorHostKeyProvider;
-import org.apache.sshd.server.subsystem.sftp.SftpSubsystemFactory;
+import org.apache.sshd.sftp.server.SftpSubsystemFactory;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.PostConstruct;
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.Collections;
 
 @Service
+@Slf4j
 public class MySftpServer {
 
-    private Log log = LogFactory.getLog(MySftpServer.class);
+    private SshServer sshd;
 
     @PostConstruct
     public void startServer() throws IOException {
@@ -24,14 +29,27 @@ public class MySftpServer {
     }
 
     private void start() throws IOException {
-        SshServer sshd = SshServer.setUpDefaultServer();
-        sshd.setHost("localhost");
+        sshd = SshServer.setUpDefaultServer();
         sshd.setPort(2222);
-        sshd.setKeyPairProvider(new SimpleGeneratorHostKeyProvider(new File("host.ser")));
-        sshd.setSubsystemFactories(Collections.singletonList(new SftpSubsystemFactory()));
+        sshd.setKeyPairProvider(new SimpleGeneratorHostKeyProvider(Paths.get("host.ser")));
         sshd.setPasswordAuthenticator((username, password, session) -> username.equals("test") && password.equals("password"));
-        sshd.setPublickeyAuthenticator(new AuthorizedKeysAuthenticator(new File("---Location of authorized_keys ---->")));
+        sshd.setPublickeyAuthenticator(new AuthorizedKeysAuthenticator(Paths.get("authorized_keys")));
+        SftpSubsystemFactory factory = new SftpSubsystemFactory();
+        factory.addSftpEventListener(new MySfpEventListener());
+        sshd.setSubsystemFactories(Collections.singletonList(factory));
         sshd.start();
+        sshd.isStarted();
         log.info("SFTP server started");
+    }
+
+    @PreDestroy
+    private void stop(){
+        if(sshd != null && sshd.isStarted()){
+            try {
+                sshd.close();
+            } catch (IOException e) {
+                log.error("Unable to close SSHD Server", e);
+            }
+        }
     }
 }

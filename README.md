@@ -1,4 +1,7 @@
 # java-sftpserver
+
+This Project was forked from SaiUpadhyayula/java-sftpserver to update it, to use the latest FOSS and align it to work with modern Spring Framework
+
 A simple SFTP Server implemented using Apache Mina SSHD library using Java and Spring boot.
 To start the server ,  just run the JavaSftpserverApplication class and after that type the following command to start a SFTP session.
 
